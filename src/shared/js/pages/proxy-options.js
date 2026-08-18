@@ -122,6 +122,12 @@ import {
   const detectedCountriesList = document.getElementById('detectedCountriesList')
   const keepOnlyCountrySelect = document.getElementById('keepOnlyCountry')
   const keepOnlyCountryButton = document.getElementById('keepOnlyCountryButton')
+  const exitCountrySelect = document.getElementById('exitCountrySelect')
+  const keepOnlyExitCountryButton =
+    document.getElementById('keepOnlyExitCountryButton')
+  const removeExitCountryButton =
+    document.getElementById('removeExitCountryButton')
+  const exitCountryStatus = document.getElementById('exitCountryStatus')
 
   // Holds the AbortController of an in-flight "test all" run (null when idle).
   let checkController = null
@@ -1182,6 +1188,9 @@ import {
         }
         await ProxyManager.restoreProxy()
         await renderCustomProxies()
+        // A scan is the only thing that produces exit countries, so the
+        // pickers are re-filled here.
+        await refreshCountryPicker()
       }
     })
   }
@@ -1340,6 +1349,10 @@ import {
         ? ''
         : `${detected.length} · ${i18nGetMessage('countryUnknownShort')}: ${unknown}`
     }
+
+    // The exit-country picker is filled from the same list, so it is refreshed
+    // here rather than at every call site of this function.
+    await renderExitCountries()
   }
 
   // Resolves the country of every proxy whose address hasn't been looked up
@@ -1470,6 +1483,118 @@ import {
             : true,
         }),
         { confirmKey: 'keepOnlyCountryConfirm' },
+      )
+    })
+  }
+
+  // ---------------------------------------------------------------------------
+  // Exit-country clean-up
+  //
+  // The picker above works on the country a proxy SITS in, which a geo-IP
+  // lookup knows before any scan. This one works on the country it comes OUT
+  // in — what a website actually sees — which only exists once the proxy has
+  // been checked. So it runs on the tested list, and rows that have not been
+  // probed yet are left alone rather than swept up as "unknown".
+  // ---------------------------------------------------------------------------
+
+  const setExitCountryStatus = (text) => {
+    if (exitCountryStatus) {
+      exitCountryStatus.textContent = text || ''
+    }
+  }
+
+  // Fills the exit-country picker from the stored check results.
+  const renderExitCountries = async () => {
+    if (!exitCountrySelect) {
+      return
+    }
+
+    const { countries } = await ProxyManager.detectedExitCountries()
+    const previous = exitCountrySelect.value
+
+    if (countries.length === 0) {
+      // Nothing has been checked yet (or no probe reported a country): say so
+      // instead of offering an empty dropdown.
+      exitCountrySelect.innerHTML =
+        `<option value="">${escapeHtml(i18nGetMessage('exitCountryNotDetected'))}</option>`
+      exitCountrySelect.disabled = true
+    } else {
+      exitCountrySelect.disabled = false
+      exitCountrySelect.innerHTML = countries
+        .map(({ code, name, count }) => {
+          const label = `${code} — ${name} (${count})`
+
+          return `<option value="${escapeHtml(code)}">${escapeHtml(label)}</option>`
+        })
+        .join('')
+      if (previous && countries.some((entry) => entry.code === previous)) {
+        exitCountrySelect.value = previous
+      }
+    }
+
+    for (const button of [keepOnlyExitCountryButton, removeExitCountryButton]) {
+      if (button) {
+        button.disabled = countries.length === 0
+      }
+    }
+  }
+
+  // Shared wiring for both exit-country buttons: confirm, run, then re-sync
+  // the list, the routing (the active proxy may have just been removed) and
+  // both country pickers.
+  const runExitCountryAction = async (action, confirmKey) => {
+    if (checkController) {
+      return
+    }
+
+    const code = exitCountrySelect ? exitCountrySelect.value : ''
+
+    if (!code) {
+      setExitCountryStatus(i18nGetMessage('exitCountryNotDetected'))
+      return
+    }
+
+    if (!window.confirm(i18nGetMessage(confirmKey))) {
+      return
+    }
+
+    try {
+      const { removed, kept, unknown } = await action(code)
+
+      await ProxyManager.restoreProxy()
+      await renderCustomProxies()
+      await renderDetectedCountries()
+      setExitCountryStatus(
+        `${i18nGetMessage('countryFilterRemovedLabel')}: ${removed} · ` +
+        `${i18nGetMessage('countryFilterKeptLabel')}: ${kept} · ` +
+        `${i18nGetMessage('countryUnknownShort')}: ${unknown}`,
+      )
+    } catch (error) {
+      setExitCountryStatus(i18nGetMessage('countryDetectionFailed'))
+      console.error(`Exit-country filter failed: ${error}`)
+    }
+  }
+
+  if (keepOnlyExitCountryButton) {
+    keepOnlyExitCountryButton.addEventListener('click', async () => {
+      await runExitCountryAction(
+        (code) => ProxyManager.keepOnlyExitCountries(code, {
+          removeUnknown: countryFilterUnknown
+            ? countryFilterUnknown.checked
+            : false,
+        }),
+        'keepOnlyExitCountryConfirm',
+      )
+    })
+  }
+
+  if (removeExitCountryButton) {
+    removeExitCountryButton.addEventListener('click', async () => {
+      // "Remove this exit country" never touches the unknown ones: the user
+      // named the country to drop, not "everything I cannot classify".
+      await runExitCountryAction(
+        (code) => ProxyManager.removeExitCountries(code),
+        'removeExitCountryConfirm',
       )
     })
   }

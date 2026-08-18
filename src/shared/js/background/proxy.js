@@ -28,6 +28,7 @@ import {
 import registry from './registry'
 import {
   countryOfProxy,
+  exitCountryOf,
   getSiteCountryRules,
   resolveProxyForHost,
 } from './site-rules'
@@ -1292,6 +1293,150 @@ class ProxyManager {
       signal,
       settings: { mode: 'allow', countries, removeUnknown },
     })
+  }
+
+  // ---------------------------------------------------------------------------
+  // Exit-country filter
+  //
+  // The country above is the one the proxy SITS in — resolved from its entry
+  // IP, so it is known before anything connects. The exit country is the one a
+  // website actually SEES, and the two differ all the time: a proxy hosted in
+  // Germany can quite happily come out in Russia.
+  //
+  // The exit country comes from the IP-echo probe, so it only exists for
+  // proxies that have been checked. That makes this a POST-scan filter working
+  // on the tested list, which is exactly what it is for: after a scan, throw
+  // away everything that comes out somewhere useless.
+  // ---------------------------------------------------------------------------
+
+  /**
+   * The exit countries present in the tested list, ready for a picker.
+   * @param {Array} [proxies] - Defaults to the whole list.
+   * @returns {Promise<{tested: number, unknown: number,
+   *   countries: Array<{code: string, name: string, count: number}>}>}
+   *   `countries` is sorted by descending proxy count; `unknown` counts the
+   *   proxies whose exit country is not known yet (untested ones included).
+   */
+  async detectedExitCountries (proxies) {
+    const list = proxies || await this.getCustomProxies()
+    const [statuses, geo] = await Promise.all([
+      this.getProxyStatuses(),
+      getCachedGeo(),
+    ])
+    const counts = new Map()
+    let tested = 0
+    let unknown = 0
+
+    for (const proxy of list) {
+      const status = statuses[proxy.id]
+      const code = exitCountryOf(status)
+
+      if (!code) {
+        unknown += 1
+        continue
+      }
+      tested += 1
+
+      // The exit IP went through the same geo cache as every other address, so
+      // the country name is usually already there; the code is the fallback.
+      const info = status.exitIp ? geo[status.exitIp] : null
+      const entry = counts.get(code) ||
+        { code, name: (info && info.name) || code, count: 0 }
+
+      entry.count += 1
+      counts.set(code, entry)
+    }
+
+    return {
+      tested,
+      unknown,
+      countries: [...counts.values()].sort((first, second) =>
+        second.count - first.count || first.code.localeCompare(second.code)),
+    }
+  }
+
+  /**
+   * Removes proxies judged by the country their traffic comes OUT in.
+   * @param {string|Array<string>} code - Exit country code(s).
+   * @param {{mode?: string, removeUnknown?: boolean, proxies?: Array}}
+   *   [options] - `mode` is 'allow' (keep only these exit countries) or
+   *   'block' (remove them). `removeUnknown` also drops proxies whose exit
+   *   country is not known — which includes every untested one, so it is off
+   *   by default: a "keep only DE" on a half-scanned list would otherwise wipe
+   *   out the part that simply has not been probed yet.
+   * @returns {Promise<{removed: number, removedIds: Array<string>,
+   *   kept: number, unknown: number}>}
+   */
+  async applyExitCountryFilter (
+    code,
+    { mode = 'allow', removeUnknown = false, proxies = null } = {},
+  ) {
+    const countries = normalizeCountryCodes(code)
+    const empty = { removed: 0, removedIds: [], kept: 0, unknown: 0 }
+
+    if (countries.length === 0 || !['allow', 'block'].includes(mode)) {
+      return empty
+    }
+
+    const list = proxies || await this.getCustomProxies()
+
+    if (list.length === 0) {
+      return empty
+    }
+
+    const statuses = await this.getProxyStatuses()
+    const wanted = new Set(countries)
+    const doomedIds = []
+    let unknown = 0
+
+    for (const proxy of list) {
+      const exit = exitCountryOf(statuses[proxy.id])
+
+      if (!exit) {
+        unknown += 1
+        if (removeUnknown) {
+          doomedIds.push(proxy.id)
+        }
+        continue
+      }
+
+      const matches = wanted.has(exit)
+
+      if (mode === 'block' ? matches : !matches) {
+        doomedIds.push(proxy.id)
+      }
+    }
+
+    const removed = await this.removeCustomProxiesByIds(doomedIds)
+
+    return {
+      removed,
+      removedIds: doomedIds,
+      kept: list.length - removed,
+      unknown,
+    }
+  }
+
+  /**
+   * "I only need proxies coming out of this country."
+   * @param {string|Array<string>} code
+   * @param {{removeUnknown?: boolean}} [options]
+   * @returns {Promise<{removed: number, removedIds: Array<string>,
+   *   kept: number, unknown: number}>}
+   */
+  async keepOnlyExitCountries (code, { removeUnknown = false } = {}) {
+    return this.applyExitCountryFilter(code, { mode: 'allow', removeUnknown })
+  }
+
+  /**
+   * "Throw away everything coming out of this country."
+   * @param {string|Array<string>} code
+   * @param {{removeUnknown?: boolean}} [options]
+   * @returns {Promise<{removed: number, removedIds: Array<string>,
+   *   kept: number, unknown: number}>}
+   */
+  async removeExitCountries (code, { removeUnknown = false } = {}) {
+    return this.applyExitCountryFilter(code, { mode: 'block', removeUnknown })
   }
 
   // ---------------------------------------------------------------------------

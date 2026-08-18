@@ -61,6 +61,19 @@ export const setSiteCountryRule = async (site, codes) => {
 }
 
 /**
+ * The country a checked proxy comes OUT in — what a website sees. Known only
+ * for proxies that have been probed, so '' means "not checked yet" just as
+ * much as it means "the probe could not tell".
+ * @param status {Object|undefined} One stored per-proxy check result.
+ * @returns {string} Upper-case code, or '' when unknown.
+ */
+export const exitCountryOf = (status) => {
+  return status && status.exitCountry
+    ? String(status.exitCountry).toUpperCase()
+    : ''
+}
+
+/**
  * The country a proxy is judged by for the rules and for the popup.
  *
  * The exit country is what the site actually sees, so it wins; the country of
@@ -71,10 +84,10 @@ export const setSiteCountryRule = async (site, codes) => {
  * @returns {string} Upper-case code, or '' when unknown.
  */
 export const countryOfProxy = (proxy, statuses, geo, hostFromUri) => {
-  const status = statuses[proxy.id]
+  const exit = exitCountryOf(statuses[proxy.id])
 
-  if (status && status.exitCountry) {
-    return String(status.exitCountry).toUpperCase()
+  if (exit) {
+    return exit
   }
 
   const info = geo[hostFromUri(proxy.uri)]

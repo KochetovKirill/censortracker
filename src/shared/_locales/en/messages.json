@@ -311,6 +311,15 @@
   "emptyRegistryHint": {
     "message": "The list of websites to proxy is empty, so no traffic is proxied right now. Enable proxying all traffic above, or add websites to the proxying list."
   },
+  "exitCountryHint": {
+    "message": "The exit country is the one a website sees, and it can differ from where the proxy is hosted. It is only known for proxies that have already been checked, so run a check first — untested proxies are never removed here."
+  },
+  "exitCountryLabel": {
+    "message": "Exit country"
+  },
+  "exitCountryNotDetected": {
+    "message": "Check the proxies first"
+  },
   "experimentalBadge": {
     "message": "experimental"
   },
@@ -438,6 +447,12 @@
   },
   "keepOnlyCountryLabel": {
     "message": "Keep only"
+  },
+  "keepOnlyExitCountryButton": {
+    "message": "Keep only this exit country"
+  },
+  "keepOnlyExitCountryConfirm": {
+    "message": "Remove every checked proxy that comes out in a different country?"
   },
   "localProxyConfigValueDescr": {
     "message": "Enter your vless://, vmess:// or ss:// config."
@@ -803,6 +818,12 @@
   },
   "removeDuplicateProxiesButton": {
     "message": "Remove duplicates"
+  },
+  "removeExitCountryButton": {
+    "message": "Remove this exit country"
+  },
+  "removeExitCountryConfirm": {
+    "message": "Remove every proxy that comes out in the selected country?"
   },
   "removeUncheckedProxiesButton": {
     "message": "Remove unchecked"

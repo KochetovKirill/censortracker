@@ -176,6 +176,13 @@ whole countries up front, without spending a probe slot or a timeout on them:
 - **Proxies with an unresolved country** are kept by default (so "keep only NL"
   can't wipe out entries the geo-IP lookup simply missed) — removing them is a
   separate opt-in checkbox.
+- **Exit-country clean-up — after the scan.** The country a proxy *sits in* and
+  the country it *comes out in* are not the same thing, and only the second one
+  is what a website sees. It is known once a proxy has been checked, so a second
+  picker lists the exit countries actually observed in your tested list and
+  offers both directions: keep only the proxies coming out of that country, or
+  remove exactly those. Proxies that have not been checked yet have no exit
+  country and are left alone (the same opt-in checkbox above removes them too).
 
 ### One-click helper for adding related domains
 

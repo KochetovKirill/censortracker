@@ -1,3 +1,18 @@
+# 20.16.0
+
+- **Proxies can now be cleaned up by their exit country.** The existing country
+  filter judges a proxy by the country it *sits in*, resolved from its entry IP
+  before anything connects. That is not the country a website sees: a proxy
+  hosted in Germany can come out in Russia, and a list filtered to "only NL"
+  could still be entirely useless for the thing it was collected for. The exit
+  country is already probed during a check and shown in its own column, so it is
+  now also actionable — a picker lists the exit countries actually present in
+  the tested list and offers both directions, "keep only this exit country" and
+  "remove this exit country". Proxies that have not been checked have no exit
+  country and are left alone; removing those stays behind the same opt-in
+  checkbox the entry-country filter uses, so a half-finished scan cannot be
+  turned into an empty list by one click.
+
 # 20.15.1
 
 A packaging release: nothing in the extension's behaviour changes, but the

@@ -74,13 +74,16 @@ jobs:
       # actually be installed in stable Firefox. Skipped (without failing the
       # run) when AMO credentials are not configured.
       - name: Sign Firefox add-on (Mozilla, unlisted)
+        id: sign
         env:
           WEB_EXT_API_KEY: ${{ secrets.WEB_EXT_API_KEY }}
           WEB_EXT_API_SECRET: ${{ secrets.WEB_EXT_API_SECRET }}
         run: |
           set -euo pipefail
           if [ -z "${WEB_EXT_API_KEY:-}" ] || [ -z "${WEB_EXT_API_SECRET:-}" ]; then
+            echo "signed=false" >> "$GITHUB_OUTPUT"
             echo "::warning title=Firefox add-on not signed::WEB_EXT_API_KEY / WEB_EXT_API_SECRET secrets are not set. Shipping the unsigned .zip only — it cannot be installed in release Firefox. See https://addons.mozilla.org/developers/addon/api/key/"
+            echo "**No signed \`.xpi\` in this release.** \`WEB_EXT_API_KEY\` / \`WEB_EXT_API_SECRET\` are not configured, so only the unsigned Firefox \`.zip\` is attached. See https://addons.mozilla.org/developers/addon/api/key/" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           VERSION=$(node -p "require('./package.json').version")
@@ -94,6 +97,15 @@ jobs:
             [ -e "$f" ] || continue
             cp "$f" "release-assets/censortracker-firefox-v${VERSION}.xpi"
           done
+          # `web-ext sign` can exit 0 without producing a file (AMO validation
+          # rejected the build). Say so loudly rather than publishing a release
+          # whose notes promise an .xpi that is not attached.
+          if ls release-assets/*.xpi >/dev/null 2>&1; then
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Firefox add-on not signed::web-ext sign produced no .xpi. Shipping the unsigned .zip only."
+          fi
           ls -la release-assets
 
       # Keeps the packages downloadable from the run itself, which is the only
@@ -105,10 +117,23 @@ jobs:
           path: release-assets/*
           if-no-files-found: error
 
+      # The Firefox install instructions differ depending on whether signing
+      # ran, and a reader of the release page cannot tell which case they are
+      # in from the asset list alone. State it in the notes.
       - name: Create / update GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v3
         with:
           name: ${{ github.ref_name }}
           generate_release_notes: true
+          body: |
+            ### Installation
+
+            **Chromium (Chrome, Edge, Opera, Brave, Yandex, Vivaldi)** — download
+            `censortracker-chrome-*.zip`, unpack it, then `chrome://extensions/`
+            → *Developer mode* → *Load unpacked*.
+
+            ${{ steps.sign.outputs.signed == 'true'
+              && '**Firefox** — download `censortracker-firefox-*.xpi` (signed by Mozilla) and open it in Firefox.'
+              || '**Firefox** — this release has **no signed `.xpi`**: the repository has no AMO signing credentials configured, so only the unsigned `censortracker-firefox-*.zip` is attached. Stable Firefox refuses unsigned add-ons ("this add-on appears to be corrupt"), so install it either as a temporary add-on via `about:debugging#/runtime/this-firefox` → *Load Temporary Add-on*, or permanently in Firefox Developer Edition / Nightly / ESR with `xpinstall.signatures.required` set to `false`.' }}
           files: release-assets/*

@@ -33,14 +33,24 @@ above.
 
 ### Firefox
 
-Download the **`.xpi`** asset from the latest release and open it in Firefox —
-the add-on is signed by Mozilla, so it installs in regular Firefox. Alternatively:
-`about:addons` → ⚙️ → *Install Add-on From File…*.
+If a **`.xpi`** asset is attached to the release, download it and open it in
+Firefox: it is signed by Mozilla, so it installs in regular Firefox.
+Alternatively: `about:addons` → ⚙️ → *Install Add-on From File…*.
 
-> ⚠️ Do not install the `.zip`: stable Firefox rejects unsigned add-ons with the
-> error *"this add-on appears to be corrupt"*. See
-> [Installing the Firefox release](#installing-the-firefox-release) for details
-> and signing setup.
+> ⚠️ **Releases currently carry no `.xpi`.** This repository has no AMO signing
+> credentials configured, so CI skips the signing step (it says so in the build
+> log) and ships the unsigned `.zip` only. Stable Firefox rejects unsigned
+> add-ons with the error *"this add-on appears to be corrupt"*, so the `.zip`
+> can only be installed one of two ways:
+>
+> - **temporarily** — `about:debugging#/runtime/this-firefox` → *Load Temporary
+>   Add-on…* → pick the `.zip`. It is gone after a browser restart;
+> - **permanently** — in Firefox Developer Edition, Nightly or ESR, with
+>   `xpinstall.signatures.required` set to `false` in `about:config`. The
+>   preference has no effect in regular Firefox.
+>
+> See [Installing the Firefox release](#installing-the-firefox-release) for how
+> to set signing up so the `.xpi` is produced automatically.
 
 ### Chrome / Chromium (Chrome, Edge, Opera, Brave, Yandex, Vivaldi)
 
@@ -329,9 +339,16 @@ Installing the Firefox release
 Stable Firefox **refuses to install unsigned add-ons** and reports them with
 the misleading message *"this add-on appears to be corrupt"*. A plain `.zip`
 produced by `npm run release:firefox` therefore cannot be installed directly —
-it first has to be signed by Mozilla. Install the **`.xpi`** asset attached to
-each [GitHub Release](https://github.com/avatarDD/censortracker/releases), not
-the `.zip`.
+it first has to be signed by Mozilla. When a **`.xpi`** asset is attached to a
+[GitHub Release](https://github.com/avatarDD/censortracker/releases), install
+that one rather than the `.zip`.
+
+**The `.xpi` only appears when signing is configured.** Without AMO credentials
+the signing step is skipped (the run still succeeds) and the release carries the
+unsigned `.zip` alone — which is the situation in this repository today. Such a
+`.zip` can be loaded temporarily via `about:debugging` (see below), or
+permanently in Firefox Developer Edition / Nightly / ESR with
+`xpinstall.signatures.required` set to `false`.
 
 To produce a signed `.xpi`, the release CI runs
 [`web-ext sign`](https://extensionworkshop.com/documentation/develop/web-ext-command-reference/#web-ext-sign)

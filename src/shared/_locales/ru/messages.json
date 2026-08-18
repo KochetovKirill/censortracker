@@ -311,6 +311,15 @@
   "emptyRegistryHint": {
     "message": "Список сайтов для проксирования пуст — сейчас трафик не проксируется. Включите проксирование всего трафика выше или добавьте сайты в список."
   },
+  "exitCountryHint": {
+    "message": "Страна выхода — та, которую видит сайт; она может отличаться от страны размещения прокси. Она известна только для уже проверенных прокси, поэтому сначала запустите проверку — непроверенные прокси здесь не удаляются."
+  },
+  "exitCountryLabel": {
+    "message": "Страна выхода"
+  },
+  "exitCountryNotDetected": {
+    "message": "Сначала проверьте прокси"
+  },
   "experimentalBadge": {
     "message": "тестовый"
   },
@@ -438,6 +447,12 @@
   },
   "keepOnlyCountryLabel": {
     "message": "Оставить только"
+  },
+  "keepOnlyExitCountryButton": {
+    "message": "Оставить только эту страну выхода"
+  },
+  "keepOnlyExitCountryConfirm": {
+    "message": "Удалить все проверенные прокси с другой страной выхода?"
   },
   "localProxyConfigValueDescr": {
     "message": "Вставьте конфигурацию vless://, vmess:// или ss://."
@@ -803,6 +818,12 @@
   },
   "removeDuplicateProxiesButton": {
     "message": "Удалить дубликаты"
+  },
+  "removeExitCountryButton": {
+    "message": "Удалить эту страну выхода"
+  },
+  "removeExitCountryConfirm": {
+    "message": "Удалить все прокси с выбранной страной выхода?"
   },
   "removeUncheckedProxiesButton": {
     "message": "Удалить неотмеченные"

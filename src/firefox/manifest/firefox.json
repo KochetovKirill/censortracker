@@ -11,7 +11,7 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "censortracker@avatardd",
+      "id": "{0877ae40-388e-423e-93b1-fb128938d464}",
       "strict_min_version": "91.1.0",
       "data_collection_permissions": {
         "required": ["none"]
